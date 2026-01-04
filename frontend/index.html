@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="no">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Idéfabrikken</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              mono: ['JetBrains Mono', 'monospace'],
+            },
+            colors: {
+              background: "var(--background)",
+              surface: "var(--surface)",
+              "surface-elevated": "var(--surface-elevated)",
+              border: "var(--border)",
+              "border-bright": "var(--border-bright)",
+              primary: {
+                DEFAULT: "var(--text-primary)",
+                muted: "var(--text-muted)",
+              },
+              accent: {
+                DEFAULT: "var(--accent-primary)",
+                subtle: "var(--accent-subtle)",
+              },
+            },
+            backgroundImage: {
+              'grain': 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 400 400\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\' opacity=\'0.05\'/%3E%3C/svg%3E")',
+            }
+          },
+        },
+      }
+    </script>
+    <style>
+      :root {
+        /* Swiss Ceramic Palette */
+        --background: #FDFCF8; /* Warm Alabaster */
+        --surface: #FFFFFF;
+        --surface-elevated: #F4F4F5;
+        
+        --border: #E4E4E7;
+        --border-bright: #D4D4D8;
+        
+        --text-primary: #18181B; /* Zinc 900 */
+        --text-secondary: #52525B; /* Zinc 600 */
+        --text-muted: #71717A; /* Zinc 500 */
+
+        /* Innovative Accents: International Orange & Deep Emerald */
+        --accent-primary: #FF4F00; 
+        --accent-subtle: #FFF1EB;
+
+        --success: #059669; /* Emerald 600 */
+        --warning: #D97706; /* Amber 600 */
+        --error: #DC2626; /* Red 600 */
+        --info: #2563EB; /* Blue 600 */
+      }
+
+      body {
+        background-color: var(--background);
+        color: var(--text-primary);
+        font-feature-settings: "rlig" 1, "calt" 1;
+      }
+
+      /* Clean Modern Utilities */
+      .glass {
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+      }
+      
+      .paper-card {
+        background: #FFFFFF;
+        border: 1px solid var(--border);
+        box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.02);
+      }
+
+      /* Scrollbar */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent; 
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #E4E4E7; 
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #D4D4D8; 
+      }
+
+      /* Markdown Overrides for Light Mode */
+      .prose { color: var(--text-secondary); }
+      .prose h1, .prose h2, .prose h3 { color: var(--text-primary); letter-spacing: -0.02em; font-weight: 600; }
+      .prose strong { color: var(--text-primary); }
+      .prose blockquote { border-left-color: var(--accent-primary); color: var(--text-primary); background: var(--accent-subtle); padding: 0.5rem 1rem; border-radius: 0 4px 4px 0; }
+      .prose code { color: var(--accent-primary); background: var(--surface-elevated); border: 1px solid var(--border); padding: 0.1em 0.3em; border-radius: 4px; }
+      .prose th { color: var(--text-primary); border-bottom-color: var(--border); }
+      .prose td { border-bottom-color: var(--border); }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.3.1",
+    "react/": "https://esm.sh/react@18.3.1/",
+    "react-dom": "https://esm.sh/react-dom@18.3.1",
+    "react-dom/": "https://esm.sh/react-dom@18.3.1/",
+    "react-router-dom": "https://esm.sh/react-router-dom@6.22.3?deps=react@18.3.1,react-dom@18.3.1",
+    "framer-motion": "https://esm.sh/framer-motion@11.0.8?deps=react@18.3.1,react-dom@18.3.1",
+    "lucide-react": "https://esm.sh/lucide-react@0.344.0?deps=react@18.3.1",
+    "react-markdown": "https://esm.sh/react-markdown@9.0.1?deps=react@18.3.1",
+    "tailwind-merge": "https://esm.sh/tailwind-merge@2.2.1",
+    "clsx": "https://esm.sh/clsx@2.1.0"
+  }
+}
+</script>
+</head>
+  <body class="antialiased selection:bg-accent-primary selection:text-white">
+    <div id="root"></div>
+  <script type="module" src="/main.tsx"></script>
+</body>
+</html>
