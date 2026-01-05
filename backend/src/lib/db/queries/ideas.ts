@@ -11,22 +11,23 @@ import type { TablesUpdate } from '../types.js';
 /**
  * Create a new idea with minimal required fields
  *
- * @param title - Idea title (required)
- * @param description - Optional short description
- * @param created_by - Optional user ID (when auth is implemented)
+ * @param data - Idea data (title, description)
+ * @param userId - User ID from JWT (automatically set, cannot be overridden)
  * @returns Created idea with generated ID
  */
-export async function createIdea(data: {
-  title: string;
-  description?: string;
-  created_by?: string;
-}) {
+export async function createIdea(
+  data: {
+    title: string;
+    description?: string;
+  },
+  userId: string
+) {
   const { data: idea, error } = await supabase
     .from('ideas')
     .insert({
       title: data.title,
       description: data.description || null,
-      created_by: data.created_by || null,
+      created_by: userId, // Auto-set from JWT
       status: 'draft',
     })
     .select()
@@ -40,15 +41,17 @@ export async function createIdea(data: {
 }
 
 /**
- * List ideas with optional status filter
+ * List ideas for a specific user with optional status filter
  *
+ * @param userId - User ID to filter ideas by (from JWT)
  * @param status - Optional status filter (draft/evaluating/evaluated/go/hold/reject)
- * @returns Array of ideas ordered by updated_at DESC
+ * @returns Array of ideas owned by the user, ordered by updated_at DESC
  */
-export async function listIdeas(status?: string) {
+export async function listIdeas(userId: string, status?: string) {
   let query = supabase
     .from('ideas')
     .select('*')
+    .eq('created_by', userId) // Only return user's own ideas
     .order('updated_at', { ascending: false });
 
   if (status) {
@@ -93,12 +96,25 @@ export async function getIdea(id: string) {
  *
  * @param id - Idea UUID
  * @param data - Partial idea data to update
+ * @param userId - User ID from JWT (for permission check)
  * @returns Updated idea
+ * @throws Error if user doesn't own the idea
  */
 export async function updateIdea(
   id: string,
-  data: TablesUpdate<'ideas'>
+  data: TablesUpdate<'ideas'>,
+  userId: string
 ) {
+  // Permission check: verify user owns the idea
+  const existing = await getIdea(id);
+  if (!existing) {
+    throw new Error('Idea not found');
+  }
+
+  if (existing.created_by !== userId && existing.created_by !== null) {
+    throw new Error('Forbidden: You do not have permission to update this idea');
+  }
+
   const { data: idea, error } = await supabase
     .from('ideas')
     .update({
@@ -117,17 +133,23 @@ export async function updateIdea(
 }
 
 /**
- * Delete an idea (only allowed for drafts)
+ * Delete an idea (only allowed for drafts owned by the user)
  *
  * @param id - Idea UUID
- * @throws Error if idea is not in draft status
+ * @param userId - User ID from JWT (for permission check)
+ * @throws Error if idea is not in draft status or user doesn't own it
  */
-export async function deleteIdea(id: string) {
-  // First check if idea is in draft status
+export async function deleteIdea(id: string, userId: string) {
+  // First check if idea exists and user owns it
   const idea = await getIdea(id);
 
   if (!idea) {
     throw new Error('Idea not found');
+  }
+
+  // Permission check
+  if (idea.created_by !== userId && idea.created_by !== null) {
+    throw new Error('Forbidden: You do not have permission to delete this idea');
   }
 
   if (idea.status !== 'draft') {
@@ -151,13 +173,13 @@ export async function deleteIdea(id: string) {
  * @param id - Idea UUID
  * @param decision - Decision type (go/hold/reject)
  * @param reason - Reason for the decision
- * @param decided_by - Optional user ID
+ * @param decidedBy - User ID from JWT (automatically set, cannot be overridden)
  */
 export async function recordDecision(
   id: string,
   decision: 'go' | 'hold' | 'reject',
   reason: string,
-  decided_by?: string
+  decidedBy: string
 ) {
   const { data: idea, error } = await supabase
     .from('ideas')
@@ -165,7 +187,7 @@ export async function recordDecision(
       decision,
       decision_reason: reason,
       decision_at: new Date().toISOString(),
-      decision_by: decided_by || null,
+      decision_by: decidedBy, // Auto-set from JWT
       status: decision, // Status follows decision
       updated_at: new Date().toISOString(),
     })

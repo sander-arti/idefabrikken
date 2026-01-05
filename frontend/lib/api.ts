@@ -3,9 +3,11 @@
  *
  * Provides typed fetch wrappers for all backend endpoints.
  * Automatically maps between frontend (camelCase) and backend (snake_case) conventions.
+ * Automatically injects JWT authentication tokens from Supabase session.
  */
 
 import type { Idea, ChatMessage, IdeaScores } from '../types';
+import { supabase } from './supabase';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -102,12 +104,15 @@ function mapBackendChatMessage(backendMessage: BackendChatMessage): ChatMessage 
 }
 
 /**
- * Generic fetch wrapper with error handling
+ * Generic fetch wrapper with error handling and JWT injection
  */
 async function apiFetch<T>(
   endpoint: string,
   options?: RequestInit
 ): Promise<T> {
+  // Get current Supabase session for JWT token
+  const { data: { session } } = await supabase.auth.getSession();
+
   const url = `${API_BASE_URL}${endpoint}`;
 
   try {
@@ -115,9 +120,20 @@ async function apiFetch<T>(
       ...options,
       headers: {
         'Content-Type': 'application/json',
+        // Inject Authorization header if we have a session
+        ...(session?.access_token && {
+          'Authorization': `Bearer ${session.access_token}`
+        }),
         ...options?.headers,
       },
     });
+
+    // Handle 401 Unauthorized - session expired or invalid
+    if (response.status === 401) {
+      await supabase.auth.signOut();
+      window.location.href = '/#/login';
+      throw new Error('Session expired');
+    }
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({

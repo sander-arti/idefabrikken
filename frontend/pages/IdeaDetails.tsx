@@ -177,6 +177,128 @@ export const IdeaDetails: React.FC = () => {
     );
   }
 
+  // -- RENDER: READY FOR EVALUATION STATE --
+  if (idea.status === 'draft' && idea.idea_document) {
+    return (
+      <Layout>
+        <motion.div
+          variants={pageVariants}
+          initial="initial"
+          animate="animate"
+          className="max-w-4xl mx-auto space-y-8"
+        >
+          {/* Back button */}
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2 text-sm font-medium text-primary-muted hover:text-primary transition-colors w-fit"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Tilbake til oversikt
+          </button>
+
+          {/* Header with status badge */}
+          <div className="flex flex-col gap-4 border-b border-border pb-6">
+            <div className="flex items-center gap-3">
+              <Badge status="draft" />
+              <span className="text-primary-muted text-sm px-2 border-l border-border font-medium">
+                Opprettet {idea.createdAt}
+              </span>
+            </div>
+            <h1 className="text-4xl font-extrabold text-primary tracking-tight">{idea.title}</h1>
+            <p className="text-lg text-primary-muted leading-relaxed">{idea.description}</p>
+          </div>
+
+          {/* Success message with call to action */}
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-8 shadow-sm">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-full bg-success flex items-center justify-center flex-shrink-0 shadow-md">
+                <Check className="w-6 h-6 text-white" />
+              </div>
+              <div className="flex-1 space-y-4">
+                <div>
+                  <h2 className="text-2xl font-extrabold text-primary mb-2">
+                    Alt ser bra ut - idéen er klar til å evalueres!
+                  </h2>
+                  <p className="text-primary-muted leading-relaxed">
+                    Idéen din er nå strukturert og klar for evaluering.
+                    Våre AI-agenter vil analysere markedspotensialet, teknisk gjennomførbarhet og forretningsmodell.
+                    Dette tar ca. 10-15 minutter.
+                  </p>
+                </div>
+                <button
+                  onClick={handleStartEvaluation}
+                  disabled={isStartingEvaluation}
+                  className="flex items-center gap-2 px-8 py-3 bg-accent-primary hover:bg-orange-600 text-white rounded-lg font-bold shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isStartingEvaluation ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Starter evaluering...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-5 h-5" />
+                      Start evaluering
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Preview of structured idea document */}
+          <div className="bg-white border border-border rounded-2xl p-8 shadow-sm">
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-border">
+              <h3 className="text-xl font-bold text-primary">Strukturert idéutkast</h3>
+              <div className="flex gap-2">
+                <button
+                  className="p-2 text-primary-muted hover:text-primary hover:bg-surface-elevated rounded-lg transition-colors"
+                  title="Kopier"
+                >
+                  <Copy className="w-4 h-4" />
+                </button>
+                <button
+                  className="p-2 text-primary-muted hover:text-primary hover:bg-surface-elevated rounded-lg transition-colors"
+                  title="Last ned"
+                >
+                  <Download className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            <div>
+              <ReactMarkdown
+                components={{
+                  p: ({node, children, ...props}) => {
+                    const text = String(children);
+                    if (text.includes('[Trenger avklaring]')) {
+                      return <p className="bg-orange-50 border-l-2 border-orange-300 pl-4 py-3 text-orange-900 text-xs rounded-r-lg font-medium my-2" {...props}>{children}</p>;
+                    }
+                    return <p className="text-primary-muted leading-7 my-3" {...props}>{children}</p>;
+                  },
+                  h1: ({node, ...props}) => <h1 className="text-2xl font-extrabold mb-6 mt-2 text-primary tracking-tight" {...props} />,
+                  h2: ({node, ...props}) => <h2 className="text-lg font-bold mt-8 mb-3 pb-2 border-b border-border text-primary" {...props} />,
+                  h3: ({node, ...props}) => <h3 className="text-base font-bold mt-6 mb-2 text-primary" {...props} />,
+                  ul: ({node, ...props}) => <ul className="my-3 space-y-1.5 ml-4" {...props} />,
+                  ol: ({node, ...props}) => <ol className="my-3 space-y-1.5 ml-4 list-decimal" {...props} />,
+                  li: ({node, ...props}) => <li className="text-primary-muted text-sm leading-6" {...props} />,
+                  strong: ({node, ...props}) => <strong className="font-bold text-primary" {...props} />,
+                  em: ({node, ...props}) => <em className="italic text-primary" {...props} />,
+                  code: ({node, inline, ...props}) =>
+                    inline ?
+                      <code className="bg-surface-elevated px-1.5 py-0.5 rounded text-xs text-accent-primary font-mono border border-border" {...props} /> :
+                      <code className="block bg-surface-elevated p-3 rounded-lg text-xs text-primary font-mono border border-border my-3 overflow-x-auto" {...props} />,
+                  blockquote: ({node, ...props}) => <blockquote className="border-l-2 border-accent-primary bg-accent-subtle pl-4 py-2 my-3 rounded-r text-primary italic" {...props} />,
+                }}
+              >
+                {idea.idea_document}
+              </ReactMarkdown>
+            </div>
+          </div>
+        </motion.div>
+      </Layout>
+    );
+  }
+
   // -- RENDER: EVALUATING STATE --
   if (idea.status === 'evaluating') {
     return (
@@ -342,8 +464,31 @@ export const IdeaDetails: React.FC = () => {
                             </button>
                         </div>
                         
-                        <div className="prose prose-zinc max-w-none">
-                            <ReactMarkdown>
+                        <div>
+                            <ReactMarkdown
+                                components={{
+                                  p: ({node, children, ...props}) => {
+                                    const text = String(children);
+                                    if (text.includes('[Trenger avklaring]')) {
+                                      return <p className="bg-orange-50 border-l-2 border-orange-300 pl-4 py-3 text-orange-900 text-xs rounded-r-lg font-medium my-2" {...props}>{children}</p>;
+                                    }
+                                    return <p className="text-primary-muted leading-7 my-3" {...props}>{children}</p>;
+                                  },
+                                  h1: ({node, ...props}) => <h1 className="text-2xl font-extrabold mb-6 mt-2 text-primary tracking-tight" {...props} />,
+                                  h2: ({node, ...props}) => <h2 className="text-lg font-bold mt-8 mb-3 pb-2 border-b border-border text-primary" {...props} />,
+                                  h3: ({node, ...props}) => <h3 className="text-base font-bold mt-6 mb-2 text-primary" {...props} />,
+                                  ul: ({node, ...props}) => <ul className="my-3 space-y-1.5 ml-4" {...props} />,
+                                  ol: ({node, ...props}) => <ol className="my-3 space-y-1.5 ml-4 list-decimal" {...props} />,
+                                  li: ({node, ...props}) => <li className="text-primary-muted text-sm leading-6" {...props} />,
+                                  strong: ({node, ...props}) => <strong className="font-bold text-primary" {...props} />,
+                                  em: ({node, ...props}) => <em className="italic text-primary" {...props} />,
+                                  code: ({node, inline, ...props}) =>
+                                    inline ?
+                                      <code className="bg-surface-elevated px-1.5 py-0.5 rounded text-xs text-accent-primary font-mono border border-border" {...props} /> :
+                                      <code className="block bg-surface-elevated p-3 rounded-lg text-xs text-primary font-mono border border-border my-3 overflow-x-auto" {...props} />,
+                                  blockquote: ({node, ...props}) => <blockquote className="border-l-2 border-accent-primary bg-accent-subtle pl-4 py-2 my-3 rounded-r text-primary italic" {...props} />,
+                                }}
+                            >
                                 {tabs.find(t => t.id === activeTab)?.content || '_Ingen data tilgjengelig_'}
                             </ReactMarkdown>
                         </div>

@@ -101,6 +101,50 @@ export function logOpenAIError(
 }
 
 /**
+ * Log Perplexity research call
+ */
+export function logPerplexityCall(data: {
+  agent: string;
+  searchesPerformed: number;
+  tokensUsed: number;
+  durationMs: number;
+  citationsCount: number;
+}) {
+  logger.info(`Perplexity Research: ${data.agent}`, {
+    searchesPerformed: data.searchesPerformed,
+    tokensUsed: data.tokensUsed,
+    durationMs: data.durationMs,
+    citationsCount: data.citationsCount,
+    costEstimate: calculatePerplexityCost(data.searchesPerformed),
+  });
+}
+
+/**
+ * Estimate Perplexity API cost
+ * Sonar Deep Research: ~$0.04 per search
+ */
+function calculatePerplexityCost(searches: number): string {
+  const costPerSearch = 0.04;
+  const costUSD = searches * costPerSearch;
+  return `$${costUSD.toFixed(4)}`;
+}
+
+/**
+ * Log provider error (OpenAI or Perplexity)
+ */
+export function logProviderError(
+  provider: 'openai' | 'perplexity',
+  error: unknown,
+  context: { agent?: string; attempt?: number }
+) {
+  logger.error(`${provider.toUpperCase()} API Error`, {
+    error: error instanceof Error ? error.message : String(error),
+    provider,
+    ...context,
+  });
+}
+
+/**
  * Log evaluation start/completion
  */
 export function logEvaluation(
@@ -112,5 +156,57 @@ export function logEvaluation(
   logger.log(level, `Evaluation ${status}`, {
     ideaId,
     ...metadata,
+  });
+}
+
+/**
+ * Log research quality assessment
+ */
+export function logResearchQuality(data: {
+  agent: string;
+  overall: 'good' | 'moderate' | 'poor';
+  findingsCount: number;
+  citationsCount: number;
+  coverageScore: number;
+  issues?: string[];
+  suggestions?: string[];
+}) {
+  const level = data.overall === 'poor' ? 'warn' : 'info';
+  logger.log(level, `Research Quality: ${data.agent}`, {
+    overall: data.overall,
+    metrics: {
+      findings: data.findingsCount,
+      citations: data.citationsCount,
+      coverage: `${data.coverageScore.toFixed(0)}%`,
+    },
+    issues: data.issues,
+    suggestions: data.suggestions,
+  });
+}
+
+/**
+ * Log evaluation cost breakdown
+ */
+export function logEvaluationCost(data: {
+  researchCost: number;
+  synthesisCost: number;
+  totalCost: number;
+  breakdown?: {
+    market?: number;
+    product?: number;
+    business?: number;
+  };
+}) {
+  logger.info('Evaluation Cost', {
+    research: `$${data.researchCost.toFixed(4)}`,
+    synthesis: `$${data.synthesisCost.toFixed(4)}`,
+    total: `$${data.totalCost.toFixed(4)}`,
+    breakdown: data.breakdown
+      ? {
+          market: `$${data.breakdown.market?.toFixed(4)}`,
+          product: `$${data.breakdown.product?.toFixed(4)}`,
+          business: `$${data.breakdown.business?.toFixed(4)}`,
+        }
+      : undefined,
   });
 }

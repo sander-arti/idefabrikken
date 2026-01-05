@@ -8,6 +8,7 @@ import {
   deleteIdea,
   recordDecision,
 } from '../../lib/db/queries/index.js';
+import { requireAuth } from '../../middleware/auth.js';
 
 export const ideasRouter: Router = Router();
 
@@ -18,7 +19,7 @@ export const ideasRouter: Router = Router();
 const createIdeaSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200, 'Title too long'),
   description: z.string().optional(),
-  created_by: z.string().optional(),
+  // created_by is auto-set from JWT, not accepted from client
 });
 
 const updateIdeaSchema = z.object({
@@ -43,18 +44,19 @@ const updateIdeaSchema = z.object({
 const recordDecisionSchema = z.object({
   decision: z.enum(['go', 'hold', 'reject']),
   reason: z.string().min(1, 'Decision reason is required'),
-  decided_by: z.string().optional(),
+  // decided_by is auto-set from JWT, not accepted from client
 });
 
 /**
  * POST /api/ideas
  * Create a new idea
  */
-ideasRouter.post('/', async (req: Request, res: Response): Promise<void> => {
+ideasRouter.post('/', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const data = createIdeaSchema.parse(req.body);
 
-    const idea = await createIdea(data);
+    // created_by is auto-set from authenticated user
+    const idea = await createIdea(data, req.user!.id);
 
     res.status(201).json(idea);
   } catch (error) {
@@ -76,9 +78,9 @@ ideasRouter.post('/', async (req: Request, res: Response): Promise<void> => {
 
 /**
  * GET /api/ideas
- * List all ideas (with optional status filter)
+ * List all ideas for authenticated user (with optional status filter)
  */
-ideasRouter.get('/', async (req: Request, res: Response): Promise<void> => {
+ideasRouter.get('/', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const status = req.query.status as string | undefined;
 
@@ -101,7 +103,8 @@ ideasRouter.get('/', async (req: Request, res: Response): Promise<void> => {
       }
     }
 
-    const ideas = await listIdeas(status);
+    // Only return ideas created by authenticated user
+    const ideas = await listIdeas(req.user!.id, status);
 
     res.json(ideas);
   } catch (error) {
@@ -115,9 +118,9 @@ ideasRouter.get('/', async (req: Request, res: Response): Promise<void> => {
 
 /**
  * GET /api/ideas/:id
- * Get a single idea by ID
+ * Get a single idea by ID (must be owned by authenticated user)
  */
-ideasRouter.get('/:id', async (req: Request, res: Response): Promise<void> => {
+ideasRouter.get('/:id', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
 
@@ -126,6 +129,14 @@ ideasRouter.get('/:id', async (req: Request, res: Response): Promise<void> => {
     if (!idea) {
       res.status(404).json({
         error: 'Idea not found',
+      });
+      return;
+    }
+
+    // Permission check: user can only access their own ideas (or legacy ideas with null created_by)
+    if (idea.created_by !== req.user!.id && idea.created_by !== null) {
+      res.status(403).json({
+        error: 'Forbidden: You do not have access to this idea',
       });
       return;
     }
@@ -142,23 +153,15 @@ ideasRouter.get('/:id', async (req: Request, res: Response): Promise<void> => {
 
 /**
  * PATCH /api/ideas/:id
- * Update an idea (partial update)
+ * Update an idea (partial update, must be owned by authenticated user)
  */
-ideasRouter.patch('/:id', async (req: Request, res: Response): Promise<void> => {
+ideasRouter.patch('/:id', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const data = updateIdeaSchema.parse(req.body);
 
-    // Check if idea exists
-    const existing = await getIdea(id);
-    if (!existing) {
-      res.status(404).json({
-        error: 'Idea not found',
-      });
-      return;
-    }
-
-    const updated = await updateIdea(id, data);
+    // updateIdea will check ownership and throw if unauthorized
+    const updated = await updateIdea(id, data, req.user!.id);
 
     res.json(updated);
   } catch (error) {
@@ -180,13 +183,14 @@ ideasRouter.patch('/:id', async (req: Request, res: Response): Promise<void> => 
 
 /**
  * DELETE /api/ideas/:id
- * Delete an idea (only drafts)
+ * Delete an idea (only drafts, must be owned by authenticated user)
  */
-ideasRouter.delete('/:id', async (req: Request, res: Response): Promise<void> => {
+ideasRouter.delete('/:id', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
 
-    await deleteIdea(id);
+    // deleteIdea will check ownership and throw if unauthorized
+    await deleteIdea(id, req.user!.id);
 
     res.status(204).send();
   } catch (error) {
@@ -214,14 +218,14 @@ ideasRouter.delete('/:id', async (req: Request, res: Response): Promise<void> =>
 
 /**
  * POST /api/ideas/:id/decision
- * Record a decision on an idea
+ * Record a decision on an idea (must be owned by authenticated user)
  */
-ideasRouter.post('/:id/decision', async (req: Request, res: Response): Promise<void> => {
+ideasRouter.post('/:id/decision', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const data = recordDecisionSchema.parse(req.body);
 
-    // Check if idea exists
+    // Check if idea exists and user owns it
     const existing = await getIdea(id);
     if (!existing) {
       res.status(404).json({
@@ -230,11 +234,20 @@ ideasRouter.post('/:id/decision', async (req: Request, res: Response): Promise<v
       return;
     }
 
+    // Permission check
+    if (existing.created_by !== req.user!.id && existing.created_by !== null) {
+      res.status(403).json({
+        error: 'Forbidden: You do not have access to this idea',
+      });
+      return;
+    }
+
+    // decision_by is auto-set from authenticated user
     const updated = await recordDecision(
       id,
       data.decision,
       data.reason,
-      data.decided_by
+      req.user!.id
     );
 
     res.json(updated);

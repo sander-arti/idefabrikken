@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Layers, Plus, Search, Bell } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { motion } from 'framer-motion';
+import { UserMenu } from '../UserMenu';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const navigate = useNavigate();
@@ -46,10 +47,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
               <Plus className="w-4 h-4" />
               Ny idé
             </motion.button>
-            
-            <div className="w-8 h-8 rounded-full bg-surface-elevated border border-border flex items-center justify-center text-xs font-bold text-primary shadow-sm cursor-pointer hover:border-gray-300 transition-colors">
-              VG
-            </div>
+
+            <UserMenu />
           </div>
         </div>
       </header>

@@ -132,12 +132,35 @@ export const NewIdea: React.FC = () => {
                   {msg.role === 'assistant' ? <Sparkles className="w-4 h-4" /> : <div className="text-xs font-bold">Du</div>}
                 </div>
                 <div className={cn(
-                  "max-w-[85%] rounded-2xl px-5 py-3 text-sm leading-relaxed whitespace-pre-wrap shadow-sm",
-                  msg.role === 'assistant' 
-                    ? "bg-white text-primary border border-border rounded-tl-none" 
-                    : "bg-primary text-white rounded-tr-none"
+                  "max-w-[85%] rounded-2xl px-5 py-3 text-sm leading-relaxed shadow-sm",
+                  msg.role === 'assistant'
+                    ? "bg-white text-primary border border-border rounded-tl-none"
+                    : "bg-primary text-white rounded-tr-none whitespace-pre-wrap"
                 )}>
-                  {msg.content}
+                  {msg.role === 'assistant' ? (
+                    <ReactMarkdown
+                      components={{
+                        p: ({node, ...props}) => <p className="my-2 first:mt-0 last:mb-0" {...props} />,
+                        strong: ({node, ...props}) => <strong className="font-bold" {...props} />,
+                        em: ({node, ...props}) => <em className="italic" {...props} />,
+                        code: ({node, inline, ...props}) =>
+                          inline ?
+                            <code className="bg-surface-elevated px-1.5 py-0.5 rounded text-xs text-accent-primary font-mono" {...props} /> :
+                            <code className="block bg-surface-elevated p-2 rounded text-xs font-mono my-2 overflow-x-auto" {...props} />,
+                        ul: ({node, ...props}) => <ul className="list-disc list-inside my-2 space-y-1" {...props} />,
+                        ol: ({node, ...props}) => <ol className="list-decimal list-inside my-2 space-y-1" {...props} />,
+                        li: ({node, ...props}) => <li className="text-sm" {...props} />,
+                        h1: ({node, ...props}) => <h1 className="text-base font-bold my-2" {...props} />,
+                        h2: ({node, ...props}) => <h2 className="text-sm font-bold my-2" {...props} />,
+                        h3: ({node, ...props}) => <h3 className="text-sm font-semibold my-1" {...props} />,
+                        blockquote: ({node, ...props}) => <blockquote className="border-l-2 border-accent-primary pl-3 italic my-2" {...props} />,
+                      }}
+                    >
+                      {msg.content}
+                    </ReactMarkdown>
+                  ) : (
+                    msg.content
+                  )}
                 </div>
               </motion.div>
             ))}
@@ -206,20 +229,30 @@ export const NewIdea: React.FC = () => {
                 )} />
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto p-8 prose prose-sm max-w-none">
+          <div className="flex-1 overflow-y-auto p-8">
             {markdownContent ? (
-              <ReactMarkdown 
+              <ReactMarkdown
                 components={{
                   p: ({node, children, ...props}) => {
                     const text = String(children);
-                    if (text.includes('[Må avklares')) {
-                      return <p className="bg-orange-50 border-l-2 border-orange-300 pl-4 py-3 text-orange-900 text-xs rounded-r-lg font-medium" {...props}>{children}</p>;
+                    if (text.includes('[Trenger avklaring]')) {
+                      return <p className="bg-orange-50 border-l-2 border-orange-300 pl-4 py-3 text-orange-900 text-xs rounded-r-lg font-medium my-2" {...props}>{children}</p>;
                     }
-                    return <p className="leading-7" {...props}>{children}</p>;
+                    return <p className="text-primary-muted leading-7 my-3" {...props}>{children}</p>;
                   },
-                  h1: ({node, ...props}) => <h1 className="text-2xl font-extrabold mb-6 text-primary tracking-tight" {...props} />,
+                  h1: ({node, ...props}) => <h1 className="text-2xl font-extrabold mb-6 mt-2 text-primary tracking-tight" {...props} />,
                   h2: ({node, ...props}) => <h2 className="text-lg font-bold mt-8 mb-3 pb-2 border-b border-border text-primary" {...props} />,
-                  ul: ({node, ...props}) => <ul className="my-4 space-y-1" {...props} />
+                  h3: ({node, ...props}) => <h3 className="text-base font-bold mt-6 mb-2 text-primary" {...props} />,
+                  ul: ({node, ...props}) => <ul className="my-3 space-y-1.5 ml-4" {...props} />,
+                  ol: ({node, ...props}) => <ol className="my-3 space-y-1.5 ml-4 list-decimal" {...props} />,
+                  li: ({node, ...props}) => <li className="text-primary-muted text-sm leading-6" {...props} />,
+                  strong: ({node, ...props}) => <strong className="font-bold text-primary" {...props} />,
+                  em: ({node, ...props}) => <em className="italic text-primary" {...props} />,
+                  code: ({node, inline, ...props}) =>
+                    inline ?
+                      <code className="bg-surface-elevated px-1.5 py-0.5 rounded text-xs text-accent-primary font-mono border border-border" {...props} /> :
+                      <code className="block bg-surface-elevated p-3 rounded-lg text-xs text-primary font-mono border border-border my-3 overflow-x-auto" {...props} />,
+                  blockquote: ({node, ...props}) => <blockquote className="border-l-2 border-accent-primary bg-accent-subtle pl-4 py-2 my-3 rounded-r text-primary italic" {...props} />,
                 }}
               >
                 {markdownContent}

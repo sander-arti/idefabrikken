@@ -67,25 +67,34 @@ app.use((_req: Request, res: Response) => {
 });
 
 // Error handler
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+app.use((err: Error & { statusCode?: number }, _req: Request, res: Response, _next: NextFunction) => {
   logger.error('Unhandled error:', {
     error: err.message,
     stack: err.stack,
   });
 
-  res.status(500).json({
-    error: 'Internal Server Error',
+  // Use error's statusCode if available, otherwise default to 500
+  const statusCode = err.statusCode || 500;
+  const errorName = statusCode === 401 || statusCode === 403 ? 'Unauthorized' : 'Internal Server Error';
+
+  res.status(statusCode).json({
+    error: errorName,
     message: env.NODE_ENV === 'development' ? err.message : 'An unexpected error occurred',
   });
 });
 
 // Start server
 const PORT = env.PORT;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   logger.info(`Server running on http://localhost:${PORT}`);
   logger.info(`Environment: ${env.NODE_ENV}`);
   logger.info(`Health check: http://localhost:${PORT}/api/health`);
 });
+
+// Configure server timeout for long-running operations (Perplexity Deep Research)
+// Note: Deep research can take 3-10 minutes per query, synthesis takes 1-5 minutes
+server.timeout = env.SERVER_TIMEOUT_MS; // 15 minutes default
+logger.info(`Server timeout: ${env.SERVER_TIMEOUT_MS}ms (${env.SERVER_TIMEOUT_MS / 60000} minutes)`);
 
 // Graceful shutdown
 process.on('SIGTERM', () => {

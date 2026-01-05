@@ -93,10 +93,16 @@ export async function updateEvaluationJobStatus(
   jobId: string,
   updates: {
     status?: 'pending' | 'running' | 'completed' | 'failed';
+    phase?: 'research' | 'synthesis' | 'complete' | null;
     market_strategist_status?: string | null;
     product_architect_status?: string | null;
     business_critic_status?: string | null;
     notes_synthesizer_status?: string | null;
+    market_research_status?: string | null;
+    product_research_status?: string | null;
+    business_research_status?: string | null;
+    estimated_time_remaining?: number | null;
+    current_step_description?: string | null;
     started_at?: string | null;
     completed_at?: string | null;
     error?: string | null;

@@ -1,11 +1,12 @@
 /**
  * Retry Logic for Agent Calls
  *
- * Handles transient failures from OpenAI API with exponential backoff.
- * Supports rate limiting (429) and temporary server errors (5xx).
+ * Handles transient failures from OpenAI and Perplexity APIs with exponential backoff.
+ * Supports rate limiting (429), temporary server errors (5xx), and network timeouts.
  */
 
 import OpenAI from 'openai';
+import { ProviderError } from './providers/types.js';
 
 export interface RetryOptions {
   maxAttempts?: number;
@@ -32,9 +33,23 @@ function sleep(ms: number): Promise<void> {
  * Determine if an error is retryable
  */
 function isRetryableError(error: unknown): boolean {
+  // Check OpenAI errors
   if (error instanceof OpenAI.APIError) {
     // Retry on rate limits (429) and server errors (5xx)
     return error.status === 429 || (error.status >= 500 && error.status < 600);
+  }
+
+  // Check ProviderError (from OpenAI or Perplexity clients)
+  if (error instanceof ProviderError) {
+    if (!error.statusCode) return false;
+
+    // Retry on rate limits and server errors
+    return (
+      error.statusCode === 429 || // Rate limit
+      error.statusCode === 503 || // Service unavailable
+      error.statusCode === 504 || // Gateway timeout
+      (error.statusCode >= 500 && error.statusCode < 600) // Other 5xx errors
+    );
   }
 
   // Retry on network errors
@@ -44,7 +59,8 @@ function isRetryableError(error: unknown): boolean {
       message.includes('network') ||
       message.includes('timeout') ||
       message.includes('econnreset') ||
-      message.includes('enotfound')
+      message.includes('enotfound') ||
+      message.includes('etimedout')
     );
   }
 

@@ -8,6 +8,7 @@ import {
 import { getIdea, updateIdea } from '../../lib/db/queries/index.js';
 import { runAgent } from '../../lib/agents/runner.js';
 import { IDEA_RECEIVER_PROMPT } from '../../lib/agents/prompts/idea-receiver.js';
+import { requireAuth } from '../../middleware/auth.js';
 
 export const chatRouter: Router = Router();
 
@@ -20,16 +21,22 @@ const sendMessageSchema = z.object({
 
 /**
  * GET /api/ideas/:id/chat
- * Get all chat messages for an idea
+ * Get all chat messages for an idea (must be owned by authenticated user)
  */
-chatRouter.get('/:id/chat', async (req: Request, res: Response): Promise<void> => {
+chatRouter.get('/:id/chat', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
 
-    // Check if idea exists
+    // Check if idea exists and user owns it
     const idea = await getIdea(id);
     if (!idea) {
       res.status(404).json({ error: 'Idea not found' });
+      return;
+    }
+
+    // Permission check
+    if (idea.created_by !== req.user!.id && idea.created_by !== null) {
+      res.status(403).json({ error: 'Forbidden: You do not have access to this idea' });
       return;
     }
 
@@ -47,17 +54,23 @@ chatRouter.get('/:id/chat', async (req: Request, res: Response): Promise<void> =
 
 /**
  * POST /api/ideas/:id/chat
- * Send a message and get AI response (OpenAI GPT-4o)
+ * Send a message and get AI response (OpenAI GPT-4o, must be owned by authenticated user)
  */
-chatRouter.post('/:id/chat', async (req: Request, res: Response): Promise<void> => {
+chatRouter.post('/:id/chat', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const data = sendMessageSchema.parse(req.body);
 
-    // Check if idea exists
+    // Check if idea exists and user owns it
     const idea = await getIdea(id);
     if (!idea) {
       res.status(404).json({ error: 'Idea not found' });
+      return;
+    }
+
+    // Permission check
+    if (idea.created_by !== req.user!.id && idea.created_by !== null) {
+      res.status(403).json({ error: 'Forbidden: You do not have access to this idea' });
       return;
     }
 
@@ -78,6 +91,7 @@ chatRouter.post('/:id/chat', async (req: Request, res: Response): Promise<void> 
       systemPrompt: IDEA_RECEIVER_PROMPT,
       userMessage: data.message,
       conversationHistory,
+      model: 'gpt-5.2',
       agentName: 'Idea Receiver',
     });
 
@@ -90,7 +104,7 @@ chatRouter.post('/:id/chat', async (req: Request, res: Response): Promise<void> 
 
     // Update idea_document if we found structured content
     if (ideaDocument) {
-      await updateIdea(id, { idea_document: ideaDocument });
+      await updateIdea(id, { idea_document: ideaDocument }, req.user!.id);
     }
 
     // Check if AI signaled readiness for evaluation
@@ -143,19 +157,56 @@ function extractIdeaDocument(aiResponse: string, ideaTitle: string): string | nu
   const documentLines: string[] = [];
   let inDocument = false;
 
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmedLine = line.trim();
+
     // Start capturing when we see a heading or structured section
     if (line.startsWith('# ') || line.startsWith('## Problem')) {
       inDocument = true;
     }
 
     if (inDocument) {
-      documentLines.push(line);
-    }
+      // Stop capturing if we hit:
+      // 1. The READY_FOR_EVALUATION marker
+      // 2. The markdown document separator (---)
+      // 3. A conversational question/statement from the AI (after the document)
 
-    // Stop capturing if we hit the READY_FOR_EVALUATION marker
-    if (line.includes('READY_FOR_EVALUATION')) {
-      break;
+      if (line.includes('READY_FOR_EVALUATION')) {
+        break;
+      }
+
+      // If we see --- followed by *Strukturert: [dato]*, include it and stop
+      if (trimmedLine.startsWith('---')) {
+        documentLines.push(line);
+        // Check next line for *Strukturert: pattern
+        if (i + 1 < lines.length && lines[i + 1].trim().startsWith('*Strukturert:')) {
+          documentLines.push(lines[i + 1]);
+        }
+        break;
+      }
+
+      // Stop if we encounter conversational text (not markdown formatting)
+      // Conversational lines typically start with capital letters and end with ? or .
+      // and don't start with #, -, *, or >
+      const looksLikeConversation =
+        trimmedLine.length > 0 &&
+        !trimmedLine.startsWith('#') &&
+        !trimmedLine.startsWith('-') &&
+        !trimmedLine.startsWith('*') &&
+        !trimmedLine.startsWith('>') &&
+        !trimmedLine.startsWith('```') &&
+        (trimmedLine.match(/^[A-ZÆØÅ].*[.?!]$/) ||
+         trimmedLine.startsWith('Ser dette') ||
+         trimmedLine.startsWith('Er det noe') ||
+         trimmedLine.startsWith('Vil du'));
+
+      if (looksLikeConversation && documentLines.length > 5) {
+        // We've captured enough of the document and now hit conversational text
+        break;
+      }
+
+      documentLines.push(line);
     }
   }
 

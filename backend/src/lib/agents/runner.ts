@@ -61,11 +61,17 @@ export async function runAgent(options: AgentOptions): Promise<AgentResponse> {
   try {
     // Call OpenAI API with retry logic
     const response = await withRetry(async () => {
+      // GPT-5.x models use max_completion_tokens instead of max_tokens
+      const isGPT5 = model.startsWith('gpt-5');
+
       return await openai.chat.completions.create({
         model,
         messages,
         temperature,
-        max_tokens: maxTokens,
+        ...(isGPT5
+          ? { max_completion_tokens: maxTokens }
+          : { max_tokens: maxTokens }
+        ),
       });
     });
 
